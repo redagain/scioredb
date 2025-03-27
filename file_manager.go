@@ -9,6 +9,29 @@ import (
 
 var errFileManagerClosed = errors.New("file manager already closed")
 
+type FileManagerOption interface {
+	setOption(*FileManager)
+}
+
+type fileManagerWithBlockSizeOption struct {
+	blockSize int
+}
+
+func (opt *fileManagerWithBlockSizeOption) setOption(m *FileManager) {
+	if opt.blockSize <= 0 {
+		m.blockSize = BlockSize
+	} else {
+		m.blockSize = opt.blockSize
+	}
+}
+
+func WithBlockSize(size int) FileManagerOption {
+	if size <= 0 {
+		size = BlockSize
+	}
+	return &fileManagerWithBlockSizeOption{blockSize: size}
+}
+
 type FileManager struct {
 	blockSize int
 	fs        FS
@@ -17,12 +40,16 @@ type FileManager struct {
 	mu        sync.RWMutex
 }
 
-func NewFileManager(fs FS, blockSize int) *FileManager {
-	return &FileManager{
-		blockSize: blockSize,
+func NewFileManager(fs FS, option ...FileManagerOption) *FileManager {
+	m := &FileManager{
+		blockSize: BlockSize,
 		fs:        fs,
 		openFiles: make(map[string]File),
 	}
+	for _, opt := range option {
+		opt.setOption(m)
+	}
+	return m
 }
 
 func (m *FileManager) getFile(name string) (f File, isNew bool, err error) {

@@ -1,6 +1,7 @@
 package scioredb
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ func TestFileManager(t *testing.T) {
 	)
 	p1 := NewPage(make([]byte, blockSize))
 	fs := MemoryFS()
-	fm := NewFileManager(fs, blockSize)
+	fm := NewFileManager(fs, WithBlockSize(blockSize))
 	b := Block{
 		ID:       2,
 		FileName: "test.sdbf",
@@ -53,5 +54,97 @@ func TestFileManager(t *testing.T) {
 	}
 	if !slices.Equal(p1.Bytes(), p2.Bytes()) {
 		t.Errorf("p1.Bytes() = %v, p2.Bytes() = %v", p1.Bytes(), p2.Bytes())
+	}
+}
+
+func TestFileManagerAppend(t *testing.T) {
+	fm := NewFileManager(MemoryFS())
+	want := Block{
+		ID:       0,
+		FileName: "test.sdbf",
+	}
+	got, err := fm.Append("test.sdbf")
+	if err != nil {
+		t.Errorf("error = %v, want = nil", err)
+		return
+	}
+	if want != got {
+		t.Errorf("want = %v, got = %v", want, got)
+	}
+}
+
+func TestFileManagerClose(t *testing.T) {
+	type args struct {
+		files []MemoryFile
+	}
+	tests := []struct {
+		name   string
+		args   args
+		before func(m *FileManager)
+		after  func(m *FileManager) error
+	}{
+		{
+			name: "NoOpenFiles",
+			after: func(m *FileManager) error {
+				return m.Close()
+			},
+		},
+		{
+			name: "Close",
+			before: func(m *FileManager) {
+				for i := 1; i < 5; i++ {
+					_, _ = m.Append(fmt.Sprintf("test-%d.sdbf", i))
+				}
+			},
+			after: func(m *FileManager) error {
+				return m.Close()
+			},
+		},
+		{
+			name: "Append",
+			after: func(m *FileManager) error {
+				_, err := m.Append("test.sdbf")
+				return err
+			},
+		},
+		{
+			name: "Write",
+			after: func(m *FileManager) error {
+				err := m.Write(Block{
+					ID:       1,
+					FileName: "test.sdbf",
+				}, NewPage(make([]byte, 10)))
+				return err
+			},
+		},
+		{
+			name: "Raed",
+			after: func(m *FileManager) error {
+				_, err := m.Read(Block{
+					ID:       1,
+					FileName: "test.sdbf",
+				})
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm := NewFileManager(MemoryFS(tt.args.files...))
+			if tt.before != nil {
+				tt.before(fm)
+			}
+			err := fm.Close()
+			if err != nil {
+				t.Errorf("error = %v, want = nil", err)
+				return
+			}
+			if tt.after != nil {
+				err := tt.after(fm)
+				if err == nil {
+					t.Errorf("error = nil, want error %v", errFileManagerClosed)
+				}
+			}
+		})
 	}
 }

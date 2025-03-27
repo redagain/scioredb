@@ -150,53 +150,53 @@ func TestOpenManyMemoryFile(t *testing.T) {
 
 func TestMemoryFileClose(t *testing.T) {
 	tests := []struct {
-		name       string
-		afterClose func(f *memoryOpenedFile) error
+		name  string
+		after func(f *memoryOpenedFile) error
 	}{
 		{
 			name: "Close",
-			afterClose: func(f *memoryOpenedFile) error {
+			after: func(f *memoryOpenedFile) error {
 				return f.Close()
 			},
 		},
 		{
 			name: "Stat",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.Stat()
 				return err
 			},
 		},
 		{
 			name: "Write",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.Write(nil)
 				return err
 			},
 		},
 		{
 			name: "WriteAt",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.WriteAt(make([]byte, 4), 0)
 				return err
 			},
 		},
 		{
 			name: "Seek",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.Seek(0, io.SeekStart)
 				return err
 			},
 		},
 		{
 			name: "Read",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.Read(nil)
 				return err
 			},
 		},
 		{
 			name: "ReadAt",
-			afterClose: func(f *memoryOpenedFile) (err error) {
+			after: func(f *memoryOpenedFile) (err error) {
 				_, err = f.ReadAt(make([]byte, 4), 0)
 				return err
 			},
@@ -209,10 +209,10 @@ func TestMemoryFileClose(t *testing.T) {
 			if err != nil {
 				t.Errorf("error = %v, want = nil", err)
 			}
-			if tt.afterClose != nil {
-				err = tt.afterClose(f)
+			if tt.after != nil {
+				err = tt.after(f)
 				if err == nil {
-					t.Errorf("error = nil, want error")
+					t.Errorf("error = nil, want error %v", fs.ErrClosed)
 				}
 			}
 		})

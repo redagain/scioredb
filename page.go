@@ -13,10 +13,6 @@ func NewPage(b []byte) *Page {
 	return &Page{buf: NewByteBuffer(b)}
 }
 
-func (p *Page) InitBuffer(b []byte) {
-	p.buf = NewByteBuffer(b)
-}
-
 func (p *Page) writeAt(b []byte, off int64) (n int, err error) {
 	n, err = p.WriteInt(len(b), off)
 	if err != nil {
