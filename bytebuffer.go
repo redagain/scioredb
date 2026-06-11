@@ -2,62 +2,52 @@ package scioredb
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
-var errNegativeOffset = errors.New("negative offset")
+var ErrNegativeOffset = errors.New("negative offset")
 
 type ByteBuffer struct {
-	b []byte
+	buf []byte
 }
 
-func NewByteBuffer(b []byte) *ByteBuffer {
-	return &ByteBuffer{b: b}
+func NewByteBuffer(buf []byte) *ByteBuffer {
+	return &ByteBuffer{buf: buf}
 }
 
-func (buf *ByteBuffer) WriteAt(p []byte, off int64) (n int, err error) {
+func (b *ByteBuffer) WriteAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
-		err = errNegativeOffset
-		return
+		return 0, fmt.Errorf("ByteBuffer.WriteAt: %w", ErrNegativeOffset)
 	}
-	if len(p) == 0 {
-		return
+	minLen := off + int64(len(p))
+	if minLen > int64(len(b.buf)) {
+		buf := make([]byte, minLen)
+		copy(buf, b.buf)
+		b.buf = buf
 	}
-	prevLen := len(buf.b)
-	diff := int(off) - prevLen
-	if diff > 0 {
-		buf.b = append(buf.b, make([]byte, diff)...)
-	}
-	buf.b = append(buf.b[:off], p...)
-	if len(buf.b) < prevLen {
-		buf.b = buf.b[:prevLen]
-	}
-	n = len(p)
+	n = copy(b.buf[off:], p)
 	return
 }
 
-func (buf *ByteBuffer) ReadAt(p []byte, off int64) (n int, err error) {
+func (b *ByteBuffer) ReadAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
-		err = errNegativeOffset
-		return
+		return 0, fmt.Errorf("ByteBuffer.ReadAt: %w", ErrNegativeOffset)
 	}
-	if len(p) == 0 {
-		return
-	}
-	if off >= int64(len(buf.b)) {
+	if off >= int64(len(b.buf)) {
 		return 0, io.EOF
 	}
-	n = copy(p, buf.b[off:])
+	n = copy(p, b.buf[off:])
 	if n < len(p) {
 		err = io.EOF
 	}
-	return
+	return n, err
 }
 
-func (buf *ByteBuffer) Len() int {
-	return len(buf.b)
+func (b *ByteBuffer) Len() int {
+	return len(b.buf)
 }
 
-func (buf *ByteBuffer) Bytes() []byte {
-	return buf.b
+func (b *ByteBuffer) Bytes() []byte {
+	return b.buf
 }
